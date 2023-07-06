@@ -1,6 +1,8 @@
 # Local .terraform directories
 **/.terraform/*
-
+**/bin/Debug/
+**/bin/Release/
+**/obj/
 # .tfstate files
 *.tfstate
 *.tfstate.*
