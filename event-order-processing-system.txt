@@ -1,0 +1,25 @@
+
+event-order-processing-system/
+│
+├── terraform/
+│   ├── api_gateway/
+│   ├── aurora/
+│   ├── iam_roles/
+│   ├── lambda_functions/
+│   │   ├── preprocessor/
+│   │   └── postprocessor/
+│   ├── security_groups/
+│   ├── sns/
+│   ├── sqs/
+│   └── variables.tf
+│
+├── lambdas/
+│   ├── preprocessor/
+│   │   ├── handler.py
+│   │   └── aurora_wrapper.py
+│   └── postprocessor/
+│       ├── handler.py
+│       └── aurora_wrapper.py
+│
+├── README.md
+└── .gitignore
