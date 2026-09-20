@@ -1,0 +1,44 @@
+name: Branch CI
+
+on:
+  push:
+    branches-ignore:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync
+      - name: Run tests
+        run: uv run pytest
+      - name: Build branch image without a registry tag
+        run: |
+          mkdir -p artifact
+          docker buildx build --output type=oci,dest=artifact/blue-green-${GITHUB_SHA}.tar .
+          sha256sum artifact/blue-green-${GITHUB_SHA}.tar | tee artifact/blue-green-${GITHUB_SHA}.tar.sha256
+      - name: Publish branch image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: branch-image-${{ github.sha }}
+          path: artifact/
+          if-no-files-found: error
+      - name: Publish build metadata
+        run: |
+          {
+            echo "commit=${GITHUB_SHA}"
+            echo "branch=${GITHUB_REF_NAME}"
+            echo "artifact=branch-image-${GITHUB_SHA}"
+            echo "registry_tag=none"
+          } | tee artifact/build-metadata.txt
