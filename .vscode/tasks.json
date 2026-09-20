@@ -4,10 +4,15 @@
     {
       "label": "Build Docker Image",
       "type": "shell",
-      "command": "bash",
-      "args": ["${workspaceFolder}/scripts/build.sh"],
+      "command": "./scripts/build.sh",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
       "problemMatcher": [],
-      "group": { "kind": "build", "isDefault": true }
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
     }
   ]
 }
