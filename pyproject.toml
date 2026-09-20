@@ -1,0 +1,20 @@
+[project]
+name = "blue-green"
+version = "0.1.0"
+description = "FastAPI application used to demonstrate an enterprise Blue/Green CI/CD lifecycle."
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.116,<1.0",
+  "uvicorn[standard]>=0.35,<1.0",
+]
+
+[dependency-groups]
+dev = [
+  "httpx>=0.28,<1.0",
+  "pytest>=8.4,<9.0",
+  "pytest-cov>=6.2,<7.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
