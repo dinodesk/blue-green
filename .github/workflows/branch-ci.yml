@@ -23,22 +23,26 @@ jobs:
         run: uv sync
       - name: Run tests
         run: uv run pytest
-      - name: Build branch image without a registry tag
+      - name: Build branch image
         run: |
           mkdir -p artifact
-          docker buildx build --output type=oci,dest=artifact/blue-green-${GITHUB_SHA}.tar .
-          sha256sum artifact/blue-green-${GITHUB_SHA}.tar | tee artifact/blue-green-${GITHUB_SHA}.tar.sha256
-      - name: Publish branch image artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: branch-image-${{ github.sha }}
-          path: artifact/
-          if-no-files-found: error
+          IMAGE_TAG="blue-green:ci-${GITHUB_SHA}"
+          docker buildx build --load -t "$IMAGE_TAG" .
+          docker image inspect "$IMAGE_TAG" --format 'image_id={{.Id}}' | tee artifact/image-metadata.txt
+          docker save "$IMAGE_TAG" -o "artifact/blue-green-${GITHUB_SHA}.tar"
+          sha256sum "artifact/blue-green-${GITHUB_SHA}.tar" | tee "artifact/blue-green-${GITHUB_SHA}.tar.sha256"
       - name: Publish build metadata
         run: |
           {
             echo "commit=${GITHUB_SHA}"
             echo "branch=${GITHUB_REF_NAME}"
             echo "artifact=branch-image-${GITHUB_SHA}"
+            echo "image_tag=blue-green:ci-${GITHUB_SHA}"
             echo "registry_tag=none"
           } | tee artifact/build-metadata.txt
+      - name: Publish branch image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: branch-image-${{ github.sha }}
+          path: artifact/
+          if-no-files-found: error
