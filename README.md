@@ -107,13 +107,19 @@ Expected response:
 Stop the application:
 
 ```bash
+./scripts/docker-stop.sh
+```
+
+For a full Compose teardown, including the network:
+
+```bash
 docker compose down
 ```
 
 View container logs:
 
 ```bash
-docker compose logs -f api
+./scripts/docker-logs.sh
 ```
 
 ### Run integration tests against Docker
@@ -141,7 +147,7 @@ BASE_URL=http://127.0.0.1:8000 uv run pytest tests/test_integration.py
 When finished:
 
 ```bash
-docker compose down
+./scripts/docker-stop.sh
 ```
 
 ### Run the Docker load test
@@ -285,6 +291,8 @@ As the AWS implementation evolves, environment configuration, secret-management,
 │   ├── build.sh
 │   ├── docker-build.sh
 │   ├── docker-run.sh
+│   ├── docker-stop.sh
+│   ├── docker-logs.sh
 │   ├── load-test.sh
 │   └── test.sh
 ├── .github/
