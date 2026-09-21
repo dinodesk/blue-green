@@ -1,24 +1,31 @@
-import subprocess
-import sys
-import time
+import os
+
 import httpx
 
-def test_health_against_running_server() -> None:
-    process = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "18000"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+
+BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:8000")
+
+
+def test_health_against_docker() -> None:
+    response = httpx.get(f"{BASE_URL}/health", timeout=5)
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+def test_order_flow_against_docker() -> None:
+    create = httpx.post(
+        f"{BASE_URL}/orders",
+        json={"customer_id": "docker-test", "product": "test-product", "quantity": 2},
+        timeout=5,
     )
-    try:
-        deadline = time.time() + 10
-        while time.time() < deadline:
-            try:
-                response = httpx.get("http://127.0.0.1:18000/health", timeout=1)
-                if response.status_code == 200:
-                    assert response.json() == {"status": "ok"}
-                    return
-            except httpx.HTTPError:
-                time.sleep(0.2)
-        raise AssertionError("FastAPI server did not become healthy")
-    finally:
-        process.terminate()
-        process.wait(timeout=5)
+    assert create.status_code == 201
+
+    order = create.json()
+    assert order["customer_id"] == "docker-test"
+    assert order["product"] == "test-product"
+    assert order["quantity"] == 2
+    assert order["status"] == "created"
+
+    get = httpx.get(f"{BASE_URL}/orders/{order['order_id']}", timeout=5)
+    assert get.status_code == 200
+    assert get.json() == order
