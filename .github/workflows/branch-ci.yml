@@ -15,23 +15,53 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
+
       - name: Install dependencies
         run: uv sync
-      - name: Run tests
-        run: uv run pytest
+
+      - name: Run unit tests
+        run: uv run pytest tests/test_api.py
+
       - name: Build branch image
         run: |
           mkdir -p artifact
           IMAGE_TAG="blue-green:ci-${GITHUB_SHA}"
           docker buildx build --load -t "$IMAGE_TAG" .
-          docker image inspect "$IMAGE_TAG" --format 'image_id={{.Id}}' | tee artifact/image-metadata.txt
-          docker save "$IMAGE_TAG" -o "artifact/blue-green-${GITHUB_SHA}.tar"
+
+          docker rm -f blue-green-ci >/dev/null 2>&1 || true
+          docker run -d --name blue-green-ci -p 8000:8000 "$IMAGE_TAG"
+
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8000/health >/dev/null; then
+              break
+            fi
+
+            if [ "$attempt" -eq 30 ]; then
+              echo "Dockerized FastAPI application did not become healthy."
+              docker logs blue-green-ci
+              exit 1
+            fi
+
+            sleep 1
+          done
+
+      - name: Run integration tests against Docker
+        run: uv run pytest tests/test_integration.py
+
+      - name: Capture branch image metadata
+        if: success()
+        run: |
+          docker image inspect "blue-green:ci-${GITHUB_SHA}" --format 'image_id={{.Id}}' | tee artifact/image-metadata.txt
+          docker save "blue-green:ci-${GITHUB_SHA}" -o "artifact/blue-green-${GITHUB_SHA}.tar"
           sha256sum "artifact/blue-green-${GITHUB_SHA}.tar" | tee "artifact/blue-green-${GITHUB_SHA}.tar.sha256"
+
       - name: Publish build metadata
+        if: success()
         run: |
           {
             echo "commit=${GITHUB_SHA}"
@@ -40,9 +70,15 @@ jobs:
             echo "image_tag=blue-green:ci-${GITHUB_SHA}"
             echo "registry_tag=none"
           } | tee artifact/build-metadata.txt
+
       - name: Publish branch image artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: branch-image-${{ github.sha }}
           path: artifact/
           if-no-files-found: error
+
+      - name: Stop Docker test container
+        if: always()
+        run: docker rm -f blue-green-ci >/dev/null 2>&1 || true
