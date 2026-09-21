@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
-docker build -t blue-green:dev .
-echo "Built blue-green:dev"
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+
+cd "${REPO_ROOT}"
+
+docker compose build api
+echo "Built Docker Compose service: api"
