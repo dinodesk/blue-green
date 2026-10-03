@@ -60,7 +60,7 @@ jobs:
             -e APP_VERSION="${APP_VERSION}" \
             -e ENVIRONMENT="qa" \
             -e IMAGE_TAG="${APP_VERSION}" \
-            -e SOURCE_COMMIT="${GITHUB_SHA}" \
+            -e SOURCE_COMMIT="${{ github.event.pull_request.head.sha }}" \
             "${IMAGE_TAG}"
 
           for attempt in {1..30}; do
