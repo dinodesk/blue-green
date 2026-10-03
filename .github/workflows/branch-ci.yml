@@ -5,7 +5,6 @@ on:
     branches:
       - main
     types: [opened, synchronize, reopened]
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -28,7 +27,16 @@ jobs:
           minor="1"
           revision="${GITHUB_RUN_NUMBER}"
           version="${major}.${minor}.${pr_number}.${revision}"
-          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+          {
+            echo "version=${version}"
+            echo "pr_number=${pr_number}"
+            echo "revision=${revision}"
+          } >> "${GITHUB_OUTPUT}"
+
+          echo "PR/branch CI version: ${version}"
+          echo "PR / Jira story: ${pr_number}"
+          echo "Revision: ${revision} (unique workflow-run identity)"
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
@@ -48,12 +56,19 @@ jobs:
           IMAGE_TAG="blue-green:ci-${APP_VERSION}"
           docker buildx build --load -t "${IMAGE_TAG}" .
           docker rm -f blue-green-ci >/dev/null 2>&1 || true
-          docker run -d --name blue-green-ci -p 8000:8000             -e APP_VERSION="${APP_VERSION}"             -e ENVIRONMENT="qa"             -e IMAGE_TAG="${APP_VERSION}"             "${IMAGE_TAG}"
+          docker run -d --name blue-green-ci -p 8000:8000 \
+            -e APP_VERSION="${APP_VERSION}" \
+            -e ENVIRONMENT="qa" \
+            -e IMAGE_TAG="${APP_VERSION}" \
+            -e SOURCE_COMMIT="${GITHUB_SHA}" \
+            "${IMAGE_TAG}"
+
           for attempt in {1..30}; do
             if curl --fail --silent http://127.0.0.1:8000/health >/dev/null; then break; fi
             if [ "${attempt}" -eq 30 ]; then docker logs blue-green-ci; exit 1; fi
             sleep 1
           done
+
           actual="$(curl --fail --silent http://127.0.0.1:8000/version | python -c 'import json,sys; print(json.load(sys.stdin)["version"])')"
           test "${actual}" = "${APP_VERSION}"
 
