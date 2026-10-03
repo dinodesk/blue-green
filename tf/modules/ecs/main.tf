@@ -20,7 +20,7 @@ resource "aws_cloudwatch_log_group" "this" {
 resource "aws_ecs_task_definition" "this" {
   family                   = var.name_prefix
   requires_compatibilities = ["FARGATE"]
-  network_mode              = "awsvpc"
+  network_mode             = "awsvpc"
   cpu                      = var.cpu
   memory                   = var.memory
   execution_role_arn       = var.execution_role_arn
@@ -71,7 +71,7 @@ resource "aws_ecs_service" "this" {
   launch_type     = "FARGATE"
 
   deployment_circuit_breaker {
-    enable  = true
+    enable   = true
     rollback = true
   }
 
