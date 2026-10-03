@@ -13,4 +13,5 @@ variable "image" { type = string }
 variable "release_version" { type = string }
 variable "environment" { type = string }
 variable "health_check_path" { type = string }
+variable "aws_region" { type = string }
 variable "tags" { type = map(string) }
