@@ -1,13 +1,14 @@
 name: Branch CI
 
 on:
-  push:
-    branches-ignore:
+  pull_request:
+    branches:
       - main
-  workflow_dispatch:
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   test-and-build:
@@ -15,6 +16,27 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Resolve PR version identity
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          pr_number="${{ github.event.pull_request.number }}"
+          major="0"
+          minor="1"
+          revision="${GITHUB_RUN_NUMBER}"
+          version="${major}.${minor}.${pr_number}.${revision}"
+
+          {
+            echo "version=${version}"
+            echo "pr_number=${pr_number}"
+            echo "revision=${revision}"
+          } >> "${GITHUB_OUTPUT}"
+
+          echo "PR/branch CI version: ${version}"
+          echo "PR / Jira story: ${pr_number}"
+          echo "Revision: ${revision} (unique workflow-run identity)"
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
@@ -27,57 +49,31 @@ jobs:
       - name: Run unit tests
         run: uv run pytest tests/test_api.py
 
-      - name: Build branch image
+      - name: Build and verify versioned image
+        env:
+          APP_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          mkdir -p artifact
-          IMAGE_TAG="blue-green:ci-${GITHUB_SHA}"
-          docker buildx build --load -t "$IMAGE_TAG" .
-
+          IMAGE_TAG="blue-green:ci-${APP_VERSION}"
+          docker buildx build --load -t "${IMAGE_TAG}" .
           docker rm -f blue-green-ci >/dev/null 2>&1 || true
-          docker run -d --name blue-green-ci -p 8000:8000 "$IMAGE_TAG"
+          docker run -d --name blue-green-ci -p 8000:8000 \
+            -e APP_VERSION="${APP_VERSION}" \
+            -e ENVIRONMENT="qa" \
+            -e IMAGE_TAG="${APP_VERSION}" \
+            -e SOURCE_COMMIT="${{ github.event.pull_request.head.sha }}" \
+            "${IMAGE_TAG}"
 
           for attempt in {1..30}; do
-            if curl --fail --silent http://127.0.0.1:8000/health >/dev/null; then
-              break
-            fi
-
-            if [ "$attempt" -eq 30 ]; then
-              echo "Dockerized FastAPI application did not become healthy."
-              docker logs blue-green-ci
-              exit 1
-            fi
-
+            if curl --fail --silent http://127.0.0.1:8000/health >/dev/null; then break; fi
+            if [ "${attempt}" -eq 30 ]; then docker logs blue-green-ci; exit 1; fi
             sleep 1
           done
 
+          actual="$(curl --fail --silent http://127.0.0.1:8000/version | python -c 'import json,sys; print(json.load(sys.stdin)["version"])')"
+          test "${actual}" = "${APP_VERSION}"
+
       - name: Run integration tests against Docker
         run: uv run pytest tests/test_integration.py
-
-      - name: Capture branch image metadata
-        if: success()
-        run: |
-          docker image inspect "blue-green:ci-${GITHUB_SHA}" --format 'image_id={{.Id}}' | tee artifact/image-metadata.txt
-          docker save "blue-green:ci-${GITHUB_SHA}" -o "artifact/blue-green-${GITHUB_SHA}.tar"
-          sha256sum "artifact/blue-green-${GITHUB_SHA}.tar" | tee "artifact/blue-green-${GITHUB_SHA}.tar.sha256"
-
-      - name: Publish build metadata
-        if: success()
-        run: |
-          {
-            echo "commit=${GITHUB_SHA}"
-            echo "branch=${GITHUB_REF_NAME}"
-            echo "artifact=branch-image-${GITHUB_SHA}"
-            echo "image_tag=blue-green:ci-${GITHUB_SHA}"
-            echo "registry_tag=none"
-          } | tee artifact/build-metadata.txt
-
-      - name: Publish branch image artifact
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: branch-image-${{ github.sha }}
-          path: artifact/
-          if-no-files-found: error
 
       - name: Stop Docker test container
         if: always()
