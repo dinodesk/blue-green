@@ -56,9 +56,6 @@ jobs:
           minor="${MINOR}"
           release="${RELEASE}"
 
-          # The release number is human-selected. It may repeat for additional
-          # artifacts on the same release line, but it may not move backward
-          # within the same Major.Minor family.
           latest_release="$(
             git tag -l "v${major}.${minor}.*.*" |
               sed -E "s/^v${major//./\\.}\.${minor//./\\.}\.([0-9]+)\.[0-9]+$/\1/" |
