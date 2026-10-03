@@ -3,14 +3,20 @@ from uuid import uuid4
 from fastapi import FastAPI, HTTPException
 
 from app.models.order import OrderRequest, OrderResponse
+from app.version import runtime_identity, runtime_version
 
-app = FastAPI(title="Blue-Green FastAPI Demo", version="0.1.0")
+app = FastAPI(title="Blue-Green FastAPI Demo", version=runtime_version())
 orders: dict[str, OrderResponse] = {}
 
 
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/version")
+def version() -> dict[str, str]:
+    return runtime_identity()
 
 
 @app.post("/orders", response_model=OrderResponse, status_code=201)
