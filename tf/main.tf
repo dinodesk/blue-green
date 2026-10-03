@@ -25,7 +25,6 @@ module "alb" {
   alb_security_group = module.network.alb_security_group_id
   container_port = var.container_port
   health_check_path = var.health_check_path
-  aws_region = var.aws_region
   tags = local.common_tags
 }
 
@@ -46,6 +45,7 @@ module "ecs" {
   release_version = var.release_version
   environment = var.environment
   health_check_path = var.health_check_path
+  aws_region = var.aws_region
   tags = local.common_tags
 }
 
