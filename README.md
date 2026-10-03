@@ -22,9 +22,102 @@ This repository demonstrates an enterprise-style immutable Blue/Green delivery l
 
 ### Traceability
 
-`Git commit → image digest/version → environment → validation/approval → promotion`
+`Git commit → PR/Jira → version → image digest → environment → validation/approval → promotion`
 
-The goal is that every deployed image can be traced back to the source commit that produced it, while promotion between environments does not introduce a rebuild.
+The goal is that every deployed image can be traced back to the source commit and the release metadata that produced it. Promotion between environments does not rebuild the artifact.
+
+## Versioning
+
+The repository uses:
+
+```text
+Major.Minor.Release.Revision
+```
+
+The four fields have different responsibilities before and after merge.
+
+### Developer / PR / QA identity
+
+Before merge, the PR number identifies the isolated development and QA version stream:
+
+```text
+0.1.<PR#>.<CI revision>
+```
+
+For example, PR #15 may produce:
+
+```text
+0.1.15.101
+0.1.15.104
+0.1.15.109
+```
+
+The CI revision is the GitHub Actions workflow-run identity. Different open PRs therefore have independently identifiable version streams. The PR number is also the intended Jira story number for this portfolio workflow.
+
+These pre-merge versions are **development/QA identities**. They are not the permanent production release number.
+
+### UAT / production release identity
+
+After the desired changes are merged to `main`, a release owner explicitly selects:
+
+- Major
+- Minor
+- Release
+
+GitHub Actions owns the Revision.
+
+For example:
+
+```text
+Selected release line: 0.1.16
+
+Automation allocates:
+0.1.16.1
+0.1.16.2
+0.1.16.3
+```
+
+A release can contain multiple merged PRs/Jira stories. Therefore the production Release number is intentionally **not the PR number**.
+
+The rule is:
+
+> Humans select the release line; automation allocates the artifact revision within that release line.
+
+The authoritative immutable release identity is the Git tag, for example:
+
+```text
+v0.1.16.3
+```
+
+The release workflow protects the revision sequence with workflow concurrency and derives the next revision from existing release tags.
+
+### Promotion
+
+Once a specific release artifact is selected for UAT, the same version and immutable image digest are promoted to production:
+
+```text
+0.1.16.3
+    ↓
+   UAT
+    ↓
+   PROD
+```
+
+Moving an artifact between UAT and production does **not** increment Revision and does **not** rebuild the image.
+
+The runtime exposes the deployment identity through `/version`:
+
+```json
+{
+  "version": "0.1.16.3",
+  "environment": "uat",
+  "source_commit": "...",
+  "image_tag": "0.1.16.3",
+  "image_digest": "sha256:..."
+}
+```
+
+`APP_VERSION` is supplied by deployment automation. The FastAPI application reports it; the application does not allocate release numbers.
 
 ## Local development
 
@@ -219,6 +312,16 @@ The example application exposes:
 | Method | Endpoint | Purpose |
 |---|---|---|
 | GET | `/health` | Container/application health check |
+| GET | `/version` | Runtime version, environment, source commit, image tag, and image digest |
+| POST | `/orders` | Create an in-memory order |
+| GET | `/orders/{order_id}` | Retrieve an order |
+
+
+The example application exposes:
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/health` | Container/application health check |
 | POST | `/orders` | Create an in-memory order |
 | GET | `/orders/{order_id}` | Retrieve an order |
 
@@ -239,21 +342,25 @@ A merge to `main` always performs a **new build** rather than promoting the bran
 
 ## Main release image policy
 
-The main build receives a four-part application version:
+A merge to `main` is a new build boundary. The PR/branch image is never relabeled as the official release artifact.
+
+The release identity is:
 
 ```text
 Major.Minor.Release.Revision
 ```
 
-Example:
+The release workflow records the selected identity as an immutable Git tag. The later application-image workflow uses that selected release identity when producing the official ECR artifact.
 
-```text
-1.2.5.18
-```
+The important distinction is:
 
-The revision identifies the individual release build on `main`. The resulting image digest is recorded as the immutable artifact identity.
+- **PR number:** identifies the pre-merge development/QA stream.
+- **Release:** identifies the post-merge release line, which may contain multiple PRs.
+- **Revision:** identifies an artifact generated within that release line.
+- **ECR digest:** the ultimate immutable technical identity of the container.
+- **Environment:** deployment context and is not part of the version.
 
-After UAT validation, the exact same image is promoted to Green and later production. No rebuild occurs between these promotion stages.
+The exact UAT-tested ECR digest is promoted to production without rebuilding. Rollback uses the previously recorded production version/digest; rollback does not allocate a new application version.
 
 ## Infrastructure and AWS direction
 
