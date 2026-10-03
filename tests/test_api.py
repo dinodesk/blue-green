@@ -3,13 +3,27 @@ from app.main import app, orders
 
 client = TestClient(app)
 
+
 def setup_function() -> None:
     orders.clear()
+
 
 def test_health() -> None:
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_version() -> None:
+    response = client.get("/version")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["version"] == "0.0.0.0"
+    assert body["environment"] == "local"
+    assert body["source_commit"] == "unknown"
+    assert body["image_tag"] == "0.0.0.0"
+    assert body["image_digest"] == "unknown"
+
 
 def test_create_and_get_order() -> None:
     payload = {"customer_id": "C-100", "product": "demo-widget", "quantity": 2}
@@ -21,9 +35,11 @@ def test_create_and_get_order() -> None:
     assert fetched.status_code == 200
     assert fetched.json() == order
 
+
 def test_create_order_validation() -> None:
     response = client.post("/orders", json={"customer_id": "", "product": "demo-widget", "quantity": 0})
     assert response.status_code == 422
+
 
 def test_unknown_order_returns_404() -> None:
     response = client.get("/orders/does-not-exist")
