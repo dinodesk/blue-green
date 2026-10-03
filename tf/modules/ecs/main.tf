@@ -12,7 +12,7 @@ resource "aws_ecs_cluster" "this" {
 }
 
 resource "aws_cloudwatch_log_group" "this" {
-  name              = "/ecs/\${var.name_prefix}"
+  name              = "/ecs/${var.name_prefix}"
   retention_in_days = 14
   tags              = var.tags
 }
@@ -43,7 +43,7 @@ resource "aws_ecs_task_definition" "this" {
     ]
 
     healthCheck = {
-      command     = ["CMD-SHELL", "python -c \\"import urllib.request; urllib.request.urlopen('http://127.0.0.1:\${var.container_port}\${var.health_check_path}', timeout=2)\\""]
+      command     = ["CMD-SHELL", "python -c \\"import urllib.request; urllib.request.urlopen('http://127.0.0.1:${var.container_port}${var.health_check_path}', timeout=2)\\""]
       interval    = 10
       timeout     = 3
       retries     = 3
@@ -64,7 +64,7 @@ resource "aws_ecs_task_definition" "this" {
 }
 
 resource "aws_ecs_service" "this" {
-  name            = "\${var.name_prefix}-service"
+  name            = "${var.name_prefix}-service"
   cluster         = aws_ecs_cluster.this.id
   task_definition = aws_ecs_task_definition.this.arn
   desired_count   = var.desired_count
