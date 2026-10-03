@@ -30,7 +30,7 @@ The goal is that every deployed image can be traced back to the source commit an
 
 The repository uses:
 
-```text
+```
 Major.Minor.Release.Revision
 ```
 
@@ -40,13 +40,13 @@ The four fields have different responsibilities before and after merge.
 
 Before merge, the PR number identifies the isolated development and QA version stream:
 
-```text
+```
 0.1.<PR#>.<CI revision>
 ```
 
 For example, PR #15 may produce:
 
-```text
+```
 0.1.15.101
 0.1.15.104
 0.1.15.109
@@ -68,7 +68,7 @@ GitHub Actions owns the Revision.
 
 For example:
 
-```text
+```
 Selected release line: 0.1.16
 
 Automation allocates:
@@ -85,7 +85,7 @@ The rule is:
 
 The authoritative immutable release identity is the Git tag, for example:
 
-```text
+```
 v0.1.16.3
 ```
 
@@ -95,7 +95,7 @@ The release workflow protects the revision sequence with workflow concurrency an
 
 Once a specific release artifact is selected for UAT, the same version and immutable image digest are promoted to production:
 
-```text
+```
 0.1.16.3
     ↓
    UAT
@@ -315,7 +315,6 @@ The example application exposes:
 | GET | `/version` | Runtime version, environment, source commit, image tag, and image digest |
 | POST | `/orders` | Create an in-memory order |
 | GET | `/orders/{order_id}` | Retrieve an order |
-
 
 The order API is intentionally simple; the primary purpose of the application is to demonstrate the delivery and deployment lifecycle.
 

@@ -5,3 +5,10 @@ __pycache__/
 .coverage
 htmlcov/
 dist/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
