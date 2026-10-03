@@ -317,14 +317,6 @@ The example application exposes:
 | GET | `/orders/{order_id}` | Retrieve an order |
 
 
-The example application exposes:
-
-| Method | Endpoint | Purpose |
-|---|---|---|
-| GET | `/health` | Container/application health check |
-| POST | `/orders` | Create an in-memory order |
-| GET | `/orders/{order_id}` | Retrieve an order |
-
 The order API is intentionally simple; the primary purpose of the application is to demonstrate the delivery and deployment lifecycle.
 
 ## CI image policy
