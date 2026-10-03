@@ -1,9 +1,23 @@
 name: Allocate Main Release Version
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      major:
+        description: "Major application version"
+        required: true
+        default: "0"
+        type: string
+      minor:
+        description: "Minor application version"
+        required: true
+        default: "1"
+        type: string
+      release:
+        description: "Release line selected for this UAT/production release"
+        required: true
+        default: "1"
+        type: string
 
 concurrency:
   group: main-release-version
@@ -21,24 +35,49 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Resolve merged PR and allocate version
+      - name: Validate and allocate release version
         id: version
-        env:
-          GH_TOKEN: ${{ github.token }}
         shell: bash
+        env:
+          MAJOR: ${{ inputs.major }}
+          MINOR: ${{ inputs.minor }}
+          RELEASE: ${{ inputs.release }}
         run: |
           set -euo pipefail
-          prs="$(gh api --header 'Accept: application/vnd.github+json' "/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" --jq '.[].number')"
-          pr_number="$(printf '%s\n' "${prs}" | head -n 1)"
-          if [ -z "${pr_number}" ]; then
-            echo "Unable to determine merged PR for ${GITHUB_SHA}."
+
+          for value in "${MAJOR}" "${MINOR}" "${RELEASE}"; do
+            if ! [[ "${value}" =~ ^[0-9]+$ ]]; then
+              echo "Major, Minor and Release must all be non-negative integers."
+              exit 1
+            fi
+          done
+
+          major="${MAJOR}"
+          minor="${MINOR}"
+          release="${RELEASE}"
+
+          latest_release="$(
+            git tag -l "v${major}.${minor}.*.*" |
+              sed -E "s/^v${major//./\\.}\\.${minor//./\\.}\\.([0-9]+)\\.[0-9]+$/\\1/" |
+              grep -E '^[0-9]+$' |
+              sort -n |
+              tail -n 1 || true
+          )"
+
+          if [ -n "${latest_release}" ] && [ "${release}" -lt "${latest_release}" ]; then
+            echo "Selected release ${release} is lower than the latest release ${latest_release} for ${major}.${minor}."
+            echo "Choose the current release line again to create another revision, or a higher release number for a new release line."
             exit 1
           fi
 
-          major="0"
-          minor="1"
-          release="${pr_number}"
-          latest_revision="$(git tag -l "v${major}.${minor}.${release}.*" | sed "s/^v${major}\.${minor}\.${release}\.//" | grep -E '^[0-9]+$' | sort -n | tail -n 1 || true)"
+          latest_revision="$(
+            git tag -l "v${major}.${minor}.${release}.*" |
+              sed -E "s/^v${major//./\\.}\\.${minor//./\\.}\\.${release//./\\.}\\.([0-9]+)$/\\1/" |
+              grep -E '^[0-9]+$' |
+              sort -n |
+              tail -n 1 || true
+          )"
+
           if [ -z "${latest_revision}" ]; then
             revision=1
           else
@@ -47,9 +86,29 @@ jobs:
 
           version="${major}.${minor}.${release}.${revision}"
           tag="v${version}"
+
+          if git rev-parse "${tag}" >/dev/null 2>&1; then
+            echo "Release tag ${tag} already exists."
+            exit 1
+          fi
+
           git tag -a "${tag}" "${GITHUB_SHA}" -m "Release ${version}"
           git push origin "${tag}"
 
-          echo "Official release: ${version}"
-          echo "Release / PR / Jira story: ${pr_number}"
-          echo "Revision: ${revision}"
+          {
+            echo "version=${version}"
+            echo "tag=${tag}"
+            echo "major=${major}"
+            echo "minor=${minor}"
+            echo "release=${release}"
+            echo "revision=${revision}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Publish release identity
+        run: |
+          echo "Official release version: ${{ steps.version.outputs.version }}"
+          echo "Release line: ${{ steps.version.outputs.release }}"
+          echo "Revision: ${{ steps.version.outputs.revision }}"
+          echo "Source commit: ${GITHUB_SHA}"
+          echo "PR/Jira tickets are traceability metadata; Release is not tied to a single PR."
+          echo "The version is immutable because it is recorded as a Git tag on the selected main commit."
