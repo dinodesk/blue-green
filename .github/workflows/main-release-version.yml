@@ -56,162 +56,26 @@ jobs:
           minor="${MINOR}"
           release="${RELEASE}"
 
+          # The release number is human-selected. It may repeat for additional
+          # artifacts on the same release line, but it may not move backward
+          # within the same Major.Minor family.
           latest_release="$(
             git tag -l "v${major}.${minor}.*.*" |
-              cut -d. -f3 |
-              grep -E '^[0-9]+
-
-          if [ -n "${latest_release}" ] && [ "${release}" -lt "${latest_release}" ]; then
-            echo "Selected release ${release} is lower than the latest release ${latest_release} for ${major}.${minor}."
-            echo "Choose the current release line again to create another revision, or a higher release number for a new release line."
-            exit 1
-          fi
-
-          latest_revision="$(
-            git tag -l "v${major}.${minor}.${release}.*" |
-              cut -d. -f4 |
-              grep -E '^[0-9]+
-
-          if [ -z "${latest_revision}" ]; then
-            revision=1
-          else
-            revision=$((latest_revision + 1))
-          fi
-
-          version="${major}.${minor}.${release}.${revision}"
-          tag="v${version}"
-
-          if git rev-parse "${tag}" >/dev/null 2>&1; then
-            echo "Release tag ${tag} already exists."
-            exit 1
-          fi
-
-          git tag -a "${tag}" "${GITHUB_SHA}" -m "Release ${version}"
-          git push origin "${tag}"
-
-          {
-            echo "version=${version}"
-            echo "tag=${tag}"
-            echo "major=${major}"
-            echo "minor=${minor}"
-            echo "release=${release}"
-            echo "revision=${revision}"
-          } >> "${GITHUB_OUTPUT}"
-
-      - name: Publish release identity
-        run: |
-          echo "Official release version: ${{ steps.version.outputs.version }}"
-          echo "Release line: ${{ steps.version.outputs.release }}"
-          echo "Revision: ${{ steps.version.outputs.revision }}"
-          echo "Source commit: ${GITHUB_SHA}"
-          echo "PR/Jira tickets are traceability metadata; Release is not tied to a single PR."
-          echo "The version is immutable because it is recorded as a Git tag on the selected main commit."
- |
-              sort -n |
-              tail -n 1 || true
-          )"
-
-          if [ -n "${latest_release}" ] && [ "${release}" -lt "${latest_release}" ]; then
-            echo "Selected release ${release} is lower than the latest release ${latest_release} for ${major}.${minor}."
-            echo "Choose the current release line again to create another revision, or a higher release number for a new release line."
-            exit 1
-          fi
-
-          latest_revision="$(
-            git tag -l "v${major}.${minor}.${release}.*" |
-              sed -E "s/^v${major//./\\.}\\.${minor//./\\.}\\.${release//./\\.}\\.([0-9]+)$/\\1/" |
+              sed -E "s/^v${major//./\\.}\.${minor//./\\.}\.([0-9]+)\.[0-9]+$/\1/" |
               grep -E '^[0-9]+$' |
               sort -n |
               tail -n 1 || true
           )"
 
-          if [ -z "${latest_revision}" ]; then
-            revision=1
-          else
-            revision=$((latest_revision + 1))
-          fi
-
-          version="${major}.${minor}.${release}.${revision}"
-          tag="v${version}"
-
-          if git rev-parse "${tag}" >/dev/null 2>&1; then
-            echo "Release tag ${tag} already exists."
-            exit 1
-          fi
-
-          git tag -a "${tag}" "${GITHUB_SHA}" -m "Release ${version}"
-          git push origin "${tag}"
-
-          {
-            echo "version=${version}"
-            echo "tag=${tag}"
-            echo "major=${major}"
-            echo "minor=${minor}"
-            echo "release=${release}"
-            echo "revision=${revision}"
-          } >> "${GITHUB_OUTPUT}"
-
-      - name: Publish release identity
-        run: |
-          echo "Official release version: ${{ steps.version.outputs.version }}"
-          echo "Release line: ${{ steps.version.outputs.release }}"
-          echo "Revision: ${{ steps.version.outputs.revision }}"
-          echo "Source commit: ${GITHUB_SHA}"
-          echo "PR/Jira tickets are traceability metadata; Release is not tied to a single PR."
-          echo "The version is immutable because it is recorded as a Git tag on the selected main commit."
- |
-              sort -n |
-              tail -n 1 || true
-          )"
-
-          if [ -z "${latest_revision}" ]; then
-            revision=1
-          else
-            revision=$((latest_revision + 1))
-          fi
-
-          version="${major}.${minor}.${release}.${revision}"
-          tag="v${version}"
-
-          if git rev-parse "${tag}" >/dev/null 2>&1; then
-            echo "Release tag ${tag} already exists."
-            exit 1
-          fi
-
-          git tag -a "${tag}" "${GITHUB_SHA}" -m "Release ${version}"
-          git push origin "${tag}"
-
-          {
-            echo "version=${version}"
-            echo "tag=${tag}"
-            echo "major=${major}"
-            echo "minor=${minor}"
-            echo "release=${release}"
-            echo "revision=${revision}"
-          } >> "${GITHUB_OUTPUT}"
-
-      - name: Publish release identity
-        run: |
-          echo "Official release version: ${{ steps.version.outputs.version }}"
-          echo "Release line: ${{ steps.version.outputs.release }}"
-          echo "Revision: ${{ steps.version.outputs.revision }}"
-          echo "Source commit: ${GITHUB_SHA}"
-          echo "PR/Jira tickets are traceability metadata; Release is not tied to a single PR."
-          echo "The version is immutable because it is recorded as a Git tag on the selected main commit."
- |
-              sort -n |
-              tail -n 1 || true
-          )"
-
           if [ -n "${latest_release}" ] && [ "${release}" -lt "${latest_release}" ]; then
             echo "Selected release ${release} is lower than the latest release ${latest_release} for ${major}.${minor}."
-            echo "Choose the current release line again to create another revision, or a higher release number for a new release line."
+            echo "Choose the current release line to create another revision, or a higher release number for a new release line."
             exit 1
           fi
 
           latest_revision="$(
             git tag -l "v${major}.${minor}.${release}.*" |
-              sed -E "s/^v${major//./\\.}\\.${minor//./\\.}\\.${release//./\\.}\\.([0-9]+)$/\\1/" |
+              sed -E "s/^v${major//./\\.}\.${minor//./\\.}\.${release//./\\.}\.([0-9]+)$/\1/" |
               grep -E '^[0-9]+$' |
               sort -n |
               tail -n 1 || true
