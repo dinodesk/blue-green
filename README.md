@@ -6,7 +6,7 @@ This repository demonstrates an enterprise-style immutable Blue/Green delivery l
 
 1. Developer creates or updates a branch.
 2. Local FastAPI, Docker, test, and debug workflows provide a repeatable development loop.
-3. A branch push triggers CI.
+3. An open or updated pull request targeting `main` triggers CI.
 4. CI builds a new container image from the exact Git commit and produces an immutable build artifact.
 5. The branch image can be deployed to an isolated QA environment for validation.
 6. Automated and manual validation gates determine whether the change is ready to merge.
@@ -329,7 +329,7 @@ The order API is intentionally simple; the primary purpose of the application is
 
 ## CI image policy
 
-Every branch commit produces a new container build associated with the exact Git commit SHA.
+Every PR update produces a new container build associated with the exact PR head commit SHA.
 
 Branch builds:
 
