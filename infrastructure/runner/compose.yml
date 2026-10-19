@@ -1,0 +1,11 @@
+services:
+  github-runner:
+    build:
+      context: .
+    restart: "no"
+    environment:
+      GITHUB_REPOSITORY_URL: https://github.com/dinodesk/blue-green
+      RUNNER_NAME: blue-green-windows-docker
+      RUNNER_TOKEN: ${RUNNER_TOKEN:?Set an ephemeral GitHub runner registration token}
+    # No Docker socket mount: build jobs require a separate, deliberately secured builder.
+    # Run only trusted workflows; avoid pull_request jobs from untrusted contributors.
