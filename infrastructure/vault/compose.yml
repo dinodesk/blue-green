@@ -1,0 +1,14 @@
+services:
+  vault:
+    image: hashicorp/vault:1.19
+    cap_add:
+      - IPC_LOCK
+    ports:
+      - "127.0.0.1:8200:8200"
+    volumes:
+      - vault-data:/vault/file
+      - ./config.hcl:/vault/config/config.hcl:ro
+    command: server -config=/vault/config/config.hcl
+    restart: unless-stopped
+volumes:
+  vault-data:
